@@ -18,11 +18,13 @@ O sistema foi desenvolvido utilizando a paleta com variações de roxos/violetas
 
 ## 🚀 Tecnologias Utilizadas
 - **Framework:** [Next.js 15 (App Router)](https://nextjs.org) + **React 19** + **TypeScript**
+- **Banco de Dados & Backend:** [Supabase PostgreSQL](https://supabase.com) com Row Level Security (RLS)
 - **Estilização:** Tailwind CSS v4 com design tokens customizados e Glassmorphism
 - **Ícones:** [Lucide React](https://lucide.dev)
 - **QR Code:** `qrcode.react` (SVG de alta resolução para crachás e carteirinhas)
-- **Persistência de Estado:** React Context API + LocalStorage Engine com dados semente da UFPI
-- **API Serverless:** Endpoint `/api/status` configurado para a Vercel
+- **Persistência de Estado:** React Context API + LocalStorage Engine + Supabase Sync
+- **API Serverless:** Endpoints `/api/alunos`, `/api/computadores`, `/api/problemas`, `/api/status`, etc.
+
 
 ---
 
