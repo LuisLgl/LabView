@@ -1,0 +1,80 @@
+-- =========================================================
+-- LABVIEW UFPI - ESQUEMA DO BANCO DE DADOS SUPABASE POSTGRESQL
+-- Cole este script no SQL Editor do Supabase e clique em "RUN"
+-- =========================================================
+
+-- 1. Tabela USUARIOS
+CREATE TABLE IF NOT EXISTS "USUARIOS" (
+    "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "nome" TEXT NOT NULL,
+    "email" TEXT UNIQUE NOT NULL,
+    "senha_hash" TEXT NOT NULL DEFAULT 'hash_default',
+    "perfil" TEXT NOT NULL DEFAULT 'Administrador',
+    "criado_em" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. Tabela ALUNOS
+CREATE TABLE IF NOT EXISTS "ALUNOS" (
+    "id" TEXT PRIMARY KEY, -- Matrícula
+    "nome" TEXT NOT NULL,
+    "email" TEXT UNIQUE NOT NULL,
+    "senha_hash" TEXT NOT NULL DEFAULT 'hash_aluno',
+    "curso" TEXT NOT NULL DEFAULT 'Sistemas de Informação',
+    "status" TEXT NOT NULL DEFAULT 'ativo', -- ativo ou suspenso
+    "cadastrado_por" TEXT NOT NULL REFERENCES "USUARIOS"("id") ON DELETE CASCADE,
+    "criado_em" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Tabela COMPUTADORES
+CREATE TABLE IF NOT EXISTS "COMPUTADORES" (
+    "id" SERIAL PRIMARY KEY,
+    "patrimonio" TEXT UNIQUE NOT NULL,
+    "nome_host" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'disponivel', -- disponivel, ocupado, manutencao
+    "especificacoes" TEXT,
+    "cadastrado_por" TEXT NOT NULL REFERENCES "USUARIOS"("id") ON DELETE CASCADE
+);
+
+-- 4. Tabela CONTROLE_SALA
+CREATE TABLE IF NOT EXISTS "CONTROLE_SALA" (
+    "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "aluno_id" TEXT NOT NULL REFERENCES "ALUNOS"("id") ON DELETE CASCADE,
+    "entrada" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "saida" TIMESTAMP WITH TIME ZONE
+);
+
+-- 5. Tabela CONTROLE_COMPUTADORES
+CREATE TABLE IF NOT EXISTS "CONTROLE_COMPUTADORES" (
+    "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "aluno_id" TEXT NOT NULL REFERENCES "ALUNOS"("id") ON DELETE CASCADE,
+    "computador_id" INTEGER NOT NULL REFERENCES "COMPUTADORES"("id") ON DELETE CASCADE,
+    "inicio_uso" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "fim_uso" TIMESTAMP WITH TIME ZONE
+);
+
+-- 6. Tabela PROBLEMAS_COMPUTADORES
+CREATE TABLE IF NOT EXISTS "PROBLEMAS_COMPUTADORES" (
+    "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "computador_id" INTEGER NOT NULL REFERENCES "COMPUTADORES"("id") ON DELETE CASCADE,
+    "descricao" TEXT NOT NULL,
+    "data_registro" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "data_resolucao" TIMESTAMP WITH TIME ZONE,
+    "status" TEXT NOT NULL DEFAULT 'pendente', -- pendente ou resolvido
+    "registrado_por" TEXT NOT NULL REFERENCES "USUARIOS"("id") ON DELETE CASCADE
+);
+
+-- Habilitar RLS e permitir acesso às tabelas
+ALTER TABLE "USUARIOS" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ALUNOS" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "COMPUTADORES" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CONTROLE_SALA" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CONTROLE_COMPUTADORES" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "PROBLEMAS_COMPUTADORES" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all on USUARIOS" ON "USUARIOS" FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on ALUNOS" ON "ALUNOS" FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on COMPUTADORES" ON "COMPUTADORES" FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on CONTROLE_SALA" ON "CONTROLE_SALA" FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on CONTROLE_COMPUTADORES" ON "CONTROLE_COMPUTADORES" FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on PROBLEMAS_COMPUTADORES" ON "PROBLEMAS_COMPUTADORES" FOR ALL USING (true) WITH CHECK (true);
+

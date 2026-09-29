@@ -1,18 +1,17 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    const problemas = await prisma.problemaComputador.findMany({
-      orderBy: { data_registro: 'desc' },
-      include: {
-        computador: true,
-        responsavel: true
-      }
-    });
+    const { data: problemas, error } = await supabase
+      .from('PROBLEMAS_COMPUTADORES')
+      .select('*, computador:COMPUTADORES(*), responsavel:USUARIOS(*)')
+      .order('data_registro', { ascending: false });
+
+    if (error) throw error;
     return NextResponse.json(problemas);
-  } catch (error) {
-    return NextResponse.json({ error: 'Erro ao buscar problemas' }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Erro ao buscar problemas' }, { status: 500 });
   }
 }
 
@@ -22,31 +21,38 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { computador_id, descricao, registrado_por } = body;
 
-    const novo = await prisma.problemaComputador.create({
-      data: {
+    const { data: novo, error: probErr } = await supabase
+      .from('PROBLEMAS_COMPUTADORES')
+      .insert([{
         computador_id: Number(computador_id),
         descricao,
-        registrado_por: registrado_por || 'usr-01',
+        registrado_por: registrado_por || undefined,
         status: 'pendente'
-      }
-    });
+      }])
+      .select('*, computador:COMPUTADORES(*), responsavel:USUARIOS(*)')
+      .single();
+
+    if (probErr) throw probErr;
 
     // Atualiza computador para manutenção
-    await prisma.computador.update({
-      where: { id: Number(computador_id) },
-      data: { status: 'manutencao' }
-    });
+    await supabase
+      .from('COMPUTADORES')
+      .update({ status: 'manutencao' })
+      .eq('id', Number(computador_id));
 
     // Encerra sessão ativa do computador se houver
-    const sessaoAtiva = await prisma.controleComputadores.findFirst({
-      where: { computador_id: Number(computador_id), fim_uso: null }
-    });
+    const { data: sessaoAtiva } = await supabase
+      .from('CONTROLE_COMPUTADORES')
+      .select('*')
+      .eq('computador_id', Number(computador_id))
+      .is('fim_uso', null)
+      .maybeSingle();
 
     if (sessaoAtiva) {
-      await prisma.controleComputadores.update({
-        where: { id: sessaoAtiva.id },
-        data: { fim_uso: new Date() }
-      });
+      await supabase
+        .from('CONTROLE_COMPUTADORES')
+        .update({ fim_uso: new Date().toISOString() })
+        .eq('id', sessaoAtiva.id);
     }
 
     return NextResponse.json(novo);
@@ -61,27 +67,32 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { id } = body;
 
-    const atualizado = await prisma.problemaComputador.update({
-      where: { id },
-      data: {
+    const { data: atualizado, error: updErr } = await supabase
+      .from('PROBLEMAS_COMPUTADORES')
+      .update({
         status: 'resolvido',
-        data_resolucao: new Date()
-      }
-    });
+        data_resolucao: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updErr) throw updErr;
 
     // Se não houver outros problemas pendentes, volta status do PC para disponível
-    const pendentesRestantes = await prisma.problemaComputador.findMany({
-      where: {
-        computador_id: atualizado.computador_id,
-        status: 'pendente'
-      }
-    });
+    const { data: pendentesRestantes, error: pendErr } = await supabase
+      .from('PROBLEMAS_COMPUTADORES')
+      .select('*')
+      .eq('computador_id', atualizado.computador_id)
+      .eq('status', 'pendente');
 
-    if (pendentesRestantes.length === 0) {
-      await prisma.computador.update({
-        where: { id: atualizado.computador_id },
-        data: { status: 'disponivel' }
-      });
+    if (pendErr) throw pendErr;
+
+    if (!pendentesRestantes || pendentesRestantes.length === 0) {
+      await supabase
+        .from('COMPUTADORES')
+        .update({ status: 'disponivel' })
+        .eq('id', atualizado.computador_id);
     }
 
     return NextResponse.json(atualizado);

@@ -103,7 +103,7 @@ export default function UsuariosPage() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-[16px] bg-white/15 border-2 border-white/30 text-white font-extrabold text-xl flex items-center justify-center shadow-inner">
-              {currentUser?.nome.charAt(0)}
+              {currentUser?.nome ? currentUser.nome.charAt(0) : 'A'}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -111,11 +111,15 @@ export default function UsuariosPage() {
                   Operador Ativo no Momento:
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[0.65rem] font-bold uppercase">
-                  {currentUser?.perfil}
+                  {currentUser?.perfil || 'Não Definido'}
                 </span>
               </div>
-              <h3 className="text-xl font-extrabold text-white mt-0.5">{currentUser?.nome}</h3>
-              <span className="text-xs text-purple-200">{currentUser?.email}</span>
+              <h3 className="text-xl font-extrabold text-white mt-0.5">
+                {currentUser?.nome || 'Nenhum Operador Ativo'}
+              </h3>
+              <span className="text-xs text-purple-200">
+                {currentUser?.email || 'Cadastre ou aprove um operador abaixo'}
+              </span>
             </div>
           </div>
           <div className="text-right">
@@ -279,15 +283,13 @@ export default function UsuariosPage() {
                             <span>Alternar</span>
                           </button>
                         )}
-                        {u.id !== 'usr-01' && (
-                          <button
-                            onClick={() => removerUsuario(u.id)}
-                            className="btn-icon p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg"
-                            title="Remover operador"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => removerUsuario(u.id)}
+                          className="btn-icon p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg"
+                          title="Remover operador"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>

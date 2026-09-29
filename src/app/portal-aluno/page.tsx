@@ -15,7 +15,15 @@ import {
   Laptop,
   Sparkles,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  Wifi,
+  Zap,
+  Mouse,
+  ThermometerSnowflake,
+  MessageSquarePlus,
+  ShieldAlert,
+  CheckCircle,
+  FileText
 } from 'lucide-react';
 import { useLab } from '@/context/LabContext';
 import Modal from '@/components/ui/Modal';
@@ -27,6 +35,7 @@ export default function PortalAlunoPage() {
     computadores,
     controleSala,
     controleComputadores,
+    problemas,
     getAlunosPresentes,
     getAlunoMinutosAcumuladosHoje,
     registrarEntradaSala,
@@ -43,6 +52,7 @@ export default function PortalAlunoPage() {
   const [currentDateStr, setCurrentDateStr] = useState<string>('');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportCategory, setReportCategory] = useState<'computador' | 'laboratorio'>('computador');
+  const [reportSubcategory, setReportSubcategory] = useState<string>('Geral');
   const [reportPcId, setReportPcId] = useState<number | null>(null);
   const [reportDescricao, setReportDescricao] = useState('');
   const [selectedNewPcId, setSelectedNewPcId] = useState<number | ''>('');
@@ -92,6 +102,9 @@ export default function PortalAlunoPage() {
   // Histórico de acessos deste aluno (ordenado do mais recente para o mais antigo)
   const meusAcessos = [...controleSala.filter(c => c.aluno_id === aluno.id)].reverse();
 
+  // Histórico de ocorrências e problemas reportados por este aluno
+  const meusProblemas = [...(problemas || []).filter(p => p.registrado_por === aluno.id || p.autor_nome?.includes(aluno.nome))].reverse();
+
   // Último registro de saída se houver
   const ultimoRegistroFinalizado = meusAcessos.find(c => c.saida);
 
@@ -118,17 +131,29 @@ export default function PortalAlunoPage() {
     encerrarUsoComputador(computadorEmUso.id);
   };
 
+  const handleOpenReportModal = (category: 'computador' | 'laboratorio' = 'computador', subcategory: string = 'Geral', pcId: number | null = null) => {
+    setReportCategory(category);
+    setReportSubcategory(subcategory);
+    setReportPcId(pcId || (computadorEmUso?.id ?? null));
+    setIsReportModalOpen(true);
+  };
+
   const handleSendReport = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reportDescricao.trim()) return;
 
+    const fullDesc = reportSubcategory && reportSubcategory !== 'Geral'
+      ? `[${reportSubcategory}] ${reportDescricao.trim()}`
+      : reportDescricao.trim();
+
     registrarProblema(
-      reportCategory === 'computador' ? reportPcId || (computadorEmUso?.id ?? null) : null,
-      reportDescricao.trim(),
+      reportCategory === 'computador' ? (reportPcId || (computadorEmUso?.id ?? null)) : null,
+      fullDesc,
       reportCategory
     );
 
     setReportDescricao('');
+    setReportSubcategory('Geral');
     setIsReportModalOpen(false);
   };
 
@@ -159,14 +184,11 @@ export default function PortalAlunoPage() {
 
           <div className="portal-hero-actions">
             <button
-              onClick={() => {
-                setReportCategory('laboratorio');
-                setIsReportModalOpen(true);
-              }}
+              onClick={() => handleOpenReportModal('laboratorio', 'Estrutura Geral')}
               className="portal-hero-btn portal-hero-btn-report"
             >
               <AlertTriangle style={{ width: 16, height: 16 }} />
-              <span>Relatar Problemas</span>
+              <span>Relatar Problema no Lab</span>
             </button>
           </div>
         </div>
@@ -326,11 +348,7 @@ export default function PortalAlunoPage() {
           {computadorEmUso && (
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
               <button
-                onClick={() => {
-                  setReportCategory('computador');
-                  setReportPcId(computadorEmUso.id);
-                  setIsReportModalOpen(true);
-                }}
+                onClick={() => handleOpenReportModal('computador', 'Problema no PC', computadorEmUso.id)}
                 className="btn btn-secondary"
                 style={{ flex: 1, fontSize: '0.82rem', color: '#D97706', borderColor: '#FDE68A' }}
               >
@@ -351,7 +369,234 @@ export default function PortalAlunoPage() {
 
       </div>
 
-      {/* 3. Histórico Detalhado: Exibição Clara de Entrada E Saída */}
+      {/* 3. Central de Relato de Problemas e Chamados do Estudante */}
+      <div className="portal-card" style={{ borderColor: 'rgba(239, 68, 68, 0.25)', background: 'var(--bg-card)' }}>
+        <div className="portal-card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38,
+              height: 38,
+              borderRadius: 12,
+              background: 'rgba(239, 68, 68, 0.12)',
+              color: '#EF4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <ShieldAlert style={{ width: 20, height: 20 }} />
+            </div>
+            <div>
+              <h3 className="portal-card-title" style={{ fontSize: '1.1rem' }}>
+                Central de Suporte & Reporte de Falhas
+              </h3>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Encontrou um defeito no computador, teclado, internet ou sala? Notifique a coordenação instantaneamente.
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => handleOpenReportModal('computador', 'Geral')}
+            className="btn"
+            style={{
+              background: '#EF4444',
+              color: '#FFFFFF',
+              padding: '10px 18px',
+              borderRadius: '12px',
+              fontSize: '0.84rem',
+              fontWeight: 800,
+              gap: 8
+            }}
+          >
+            <MessageSquarePlus style={{ width: 17, height: 17 }} />
+            <span>Abrir Novo Chamado</span>
+          </button>
+        </div>
+
+        {/* Atalhos Rápidos para Reportar com 1 Clique */}
+        <div style={{ marginTop: 14 }}>
+          <span style={{ fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
+            Atalhos Rápidos de Reporte:
+          </span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+            <button
+              onClick={() => handleOpenReportModal('computador', 'Monitor / Sem Vídeo')}
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '10px 14px', borderRadius: '12px', justifyContent: 'flex-start', gap: 8 }}
+            >
+              <Monitor style={{ width: 16, height: 16, color: '#D97706' }} />
+              <span>Monitor / Sem Vídeo</span>
+            </button>
+
+            <button
+              onClick={() => handleOpenReportModal('computador', 'Teclado ou Mouse Ruim')}
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '10px 14px', borderRadius: '12px', justifyContent: 'flex-start', gap: 8 }}
+            >
+              <Mouse style={{ width: 16, height: 16, color: '#3B82F6' }} />
+              <span>Teclado / Mouse</span>
+            </button>
+
+            <button
+              onClick={() => handleOpenReportModal('laboratorio', 'Sem Internet / Wi-Fi')}
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '10px 14px', borderRadius: '12px', justifyContent: 'flex-start', gap: 8 }}
+            >
+              <Wifi style={{ width: 16, height: 16, color: '#8B5CF6' }} />
+              <span>Sem Internet / Wi-Fi</span>
+            </button>
+
+            <button
+              onClick={() => handleOpenReportModal('laboratorio', 'Ar-Condicionado / Climatização')}
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '10px 14px', borderRadius: '12px', justifyContent: 'flex-start', gap: 8 }}
+            >
+              <ThermometerSnowflake style={{ width: 16, height: 16, color: '#06B6D4' }} />
+              <span>Ar-Condicionado</span>
+            </button>
+
+            <button
+              onClick={() => handleOpenReportModal('laboratorio', 'Tomada / Sem Energia')}
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '10px 14px', borderRadius: '12px', justifyContent: 'flex-start', gap: 8 }}
+            >
+              <Zap style={{ width: 16, height: 16, color: '#EAB308' }} />
+              <span>Tomada / Energia</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Lista de Chamados Anteriores deste Estudante */}
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1.5px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText style={{ width: 16, height: 16, color: 'var(--primary)' }} />
+              <span>Meus Chamados & Ocorrências ({meusProblemas.length})</span>
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              Acompanhamento de resolução em tempo real
+            </span>
+          </div>
+
+          {meusProblemas.length === 0 ? (
+            <div style={{
+              padding: '24px 16px',
+              textAlign: 'center',
+              background: 'var(--bg-card-subtle)',
+              borderRadius: '14px',
+              border: '1px dashed var(--border-color)'
+            }}>
+              <CheckCircle style={{ width: 32, height: 32, color: 'var(--status-available)', margin: '0 auto 8px auto', opacity: 0.8 }} />
+              <p style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)' }}>Você não possui nenhum chamado aberto</p>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Tudo em ordem! Caso precise relatar alguma falha, use os botões acima.
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '280px', overflowY: 'auto' }}>
+              {meusProblemas.map((prob) => {
+                const pcRelacionado = prob.computador_id ? computadores.find(c => c.id === prob.computador_id) : null;
+                const isResolvido = prob.status === 'resolvido';
+
+                return (
+                  <div
+                    key={prob.id}
+                    style={{
+                      padding: '14px 18px',
+                      background: 'var(--bg-card-subtle)',
+                      border: '1.5px solid',
+                      borderColor: isResolvido ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                      borderRadius: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 12
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 10,
+                        background: isResolvido ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                        color: isResolvido ? '#10B981' : '#EF4444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        marginTop: 2
+                      }}>
+                        {isResolvido ? <CheckCircle2 style={{ width: 18, height: 18 }} /> : <AlertTriangle style={{ width: 18, height: 18 }} />}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>
+                            {prob.descricao}
+                          </strong>
+                          {pcRelacionado && (
+                            <span style={{
+                              padding: '2px 8px',
+                              background: 'var(--primary-light)',
+                              color: 'var(--primary)',
+                              borderRadius: '6px',
+                              fontSize: '0.7rem',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 800
+                            }}>
+                              PC: {pcRelacionado.nome_host}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: 3 }}>
+                          Aberto em {new Date(prob.data_registro).toLocaleString('pt-BR')}
+                          {prob.data_resolucao && ` • Resolvido em ${new Date(prob.data_resolucao).toLocaleString('pt-BR')}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: '0.74rem',
+                          fontWeight: 800,
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          background: isResolvido ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                          color: isResolvido ? '#059669' : '#DC2626',
+                          border: `1px solid ${isResolvido ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                        }}
+                      >
+                        {isResolvido ? (
+                          <>
+                            <CheckCircle2 style={{ width: 13, height: 13 }} />
+                            <span>Resolvido</span>
+                          </>
+                        ) : (
+                          <>
+                            <Clock style={{ width: 13, height: 13 }} />
+                            <span>Em Análise</span>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 4. Histórico Detalhado: Exibição Clara de Entrada E Saída */}
       <div className="portal-card" style={{ justifyContent: 'flex-start' }}>
         <div className="portal-card-header">
           <h3 className="portal-card-title">
@@ -489,36 +734,39 @@ export default function PortalAlunoPage() {
       <Modal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
-        title="Relatar Problemas no Laboratório"
-        subtitle="O chamado será registrado diretamente para a coordenação e equipe técnica"
+        title="Relatar Problema no Laboratório"
+        subtitle="Notifique a equipe técnica e coordenação sobre falhas em máquinas ou estrutura"
         icon={<AlertTriangle style={{ width: 22, height: 22, color: '#EF4444' }} />}
       >
-        <form onSubmit={handleSendReport} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleSendReport} style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 4 }}>
+          {/* Seletor de Categoria */}
           <div>
-            <label style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-main)', display: 'block', marginBottom: 8, textTransform: 'uppercase' }}>
-              Onde está o problema? *
+            <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-main)', display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Onde está ocorrendo o problema? *
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <button
                 type="button"
                 onClick={() => setReportCategory('computador')}
                 style={{
-                  padding: '14px',
-                  borderRadius: '14px',
-                  border: '1.8px solid',
+                  padding: '14px 16px',
+                  borderRadius: '16px',
+                  border: '2px solid',
                   borderColor: reportCategory === 'computador' ? 'var(--primary)' : 'var(--border-color)',
-                  background: reportCategory === 'computador' ? 'var(--primary-light)' : 'var(--bg-input)',
-                  color: reportCategory === 'computador' ? 'var(--primary)' : 'var(--text-muted)',
-                  fontSize: '0.82rem',
+                  background: reportCategory === 'computador' ? 'var(--primary-light)' : 'var(--bg-card-subtle)',
+                  color: reportCategory === 'computador' ? 'var(--primary)' : 'var(--text-main)',
+                  fontSize: '0.85rem',
                   fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 8,
-                  cursor: 'pointer'
+                  gap: 10,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: reportCategory === 'computador' ? '0 4px 12px rgba(99, 66, 245, 0.15)' : 'none'
                 }}
               >
-                <Laptop style={{ width: 16, height: 16 }} />
+                <Laptop style={{ width: 18, height: 18 }} />
                 <span>No Computador / PC</span>
               </button>
 
@@ -526,78 +774,175 @@ export default function PortalAlunoPage() {
                 type="button"
                 onClick={() => setReportCategory('laboratorio')}
                 style={{
-                  padding: '14px',
-                  borderRadius: '14px',
-                  border: '1.8px solid',
+                  padding: '14px 16px',
+                  borderRadius: '16px',
+                  border: '2px solid',
                   borderColor: reportCategory === 'laboratorio' ? 'var(--primary)' : 'var(--border-color)',
-                  background: reportCategory === 'laboratorio' ? 'var(--primary-light)' : 'var(--bg-input)',
-                  color: reportCategory === 'laboratorio' ? 'var(--primary)' : 'var(--text-muted)',
-                  fontSize: '0.82rem',
+                  background: reportCategory === 'laboratorio' ? 'var(--primary-light)' : 'var(--bg-card-subtle)',
+                  color: reportCategory === 'laboratorio' ? 'var(--primary)' : 'var(--text-main)',
+                  fontSize: '0.85rem',
                   fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 8,
-                  cursor: 'pointer'
+                  gap: 10,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: reportCategory === 'laboratorio' ? '0 4px 12px rgba(99, 66, 245, 0.15)' : 'none'
                 }}
               >
-                <Sparkles style={{ width: 16, height: 16 }} />
-                <span>Na Estrutura / Lab (Ar, Luz, etc.)</span>
+                <Sparkles style={{ width: 18, height: 18 }} />
+                <span>Na Sala / Estrutura</span>
               </button>
             </div>
           </div>
 
+          {/* Seção do Computador (quando categoria for computador) */}
           {reportCategory === 'computador' && (
             <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-main)', display: 'block', marginBottom: 6 }}>
-                Selecione o Computador:
+              <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-main)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Computador com defeito:
               </label>
-              <select
-                value={reportPcId || (computadorEmUso?.id ?? '')}
-                onChange={(e) => setReportPcId(Number(e.target.value))}
-                className="login-select"
-                style={{ height: '48px' }}
-              >
-                {computadores.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome_host} • {c.patrimonio} ({c.status})
-                  </option>
-                ))}
-              </select>
+              {computadores.length > 0 ? (
+                <select
+                  value={reportPcId || (computadorEmUso?.id ?? computadores[0]?.id ?? '')}
+                  onChange={(e) => setReportPcId(Number(e.target.value))}
+                  className="login-select"
+                  style={{
+                    height: '48px',
+                    fontSize: '0.88rem',
+                    width: '100%',
+                    borderRadius: '12px',
+                    border: '1.5px solid var(--border-color)',
+                    background: 'var(--bg-input)',
+                    color: 'var(--text-main)',
+                    padding: '0 14px'
+                  }}
+                >
+                  {computadores.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome_host} • {c.patrimonio} {computadorEmUso?.id === c.id ? '(Sua Máquina Atual)' : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{
+                  padding: '12px 14px',
+                  background: 'var(--bg-card-subtle)',
+                  border: '1.5px dashed var(--border-color)',
+                  borderRadius: '12px',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-muted)'
+                }}>
+                  Nenhum computador cadastrado na sala no momento. O chamado será registrado para o laboratório geral.
+                </div>
+              )}
             </div>
           )}
 
+          {/* Motivo / Tipo do Problema */}
           <div>
-            <label style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-main)', display: 'block', marginBottom: 6 }}>
-              Descreva o problema detalhadamente: *
+            <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-main)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Motivo / Tipo do Defeito:
+            </label>
+            <select
+              value={reportSubcategory}
+              onChange={(e) => setReportSubcategory(e.target.value)}
+              className="login-select"
+              style={{
+                height: '48px',
+                fontSize: '0.88rem',
+                width: '100%',
+                borderRadius: '12px',
+                border: '1.5px solid var(--border-color)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-main)',
+                padding: '0 14px'
+              }}
+            >
+              <option value="Geral">Falha Geral / Outro Motivo</option>
+              <option value="Monitor / Sem Vídeo">Monitor não liga ou sem sinal de vídeo</option>
+              <option value="Teclado / Mouse com Defeito">Teclado falhando tecla ou mouse ruim</option>
+              <option value="Computador Lento / Travando">Sistema operacional travando / reiniciando</option>
+              <option value="Sem Internet / Cabo Desconectado">Sem conexão com internet / Wi-Fi fora</option>
+              <option value="Ar-Condicionado / Climatização">Ar-condicionado desligado / sala muito quente</option>
+              <option value="Tomada / Instalação Elétrica">Tomada sem energia / mau contato</option>
+            </select>
+          </div>
+
+          {/* Descrição Detalhada */}
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-main)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Descrição Detalhada do Problema: *
             </label>
             <textarea
               required
               rows={4}
               value={reportDescricao}
               onChange={(e) => setReportDescricao(e.target.value)}
-              placeholder="Ex: PC não liga, monitor piscando, ar-condicionado desligado, teclado falhando tecla Enter..."
-              className="login-input"
-              style={{ height: 'auto', padding: '12px 16px', lineHeight: 1.4 }}
+              placeholder="Descreva o que está acontecendo (ex: PC travou na tela preta, cabo de força folgado, monitor piscando em azul)..."
+              style={{
+                width: '100%',
+                borderRadius: '14px',
+                border: '1.8px solid var(--border-color)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-main)',
+                padding: '12px 16px',
+                fontSize: '0.88rem',
+                lineHeight: 1.5,
+                outline: 'none',
+                resize: 'vertical',
+                minHeight: '100px',
+                fontFamily: 'inherit'
+              }}
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 14, borderTop: '1.5px solid var(--border-color)' }}>
+          {/* Botões do Rodapé */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 12,
+            paddingTop: 16,
+            borderTop: '1.5px solid var(--border-color)',
+            marginTop: 4
+          }}>
             <button
               type="button"
               onClick={() => setIsReportModalOpen(false)}
               className="btn btn-secondary"
-              style={{ fontSize: '0.82rem' }}
+              style={{
+                height: '46px',
+                padding: '0 20px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
+                fontWeight: 700
+              }}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="btn"
-              style={{ background: '#EF4444', color: '#FFFFFF', fontSize: '0.82rem', gap: 6 }}
+              style={{
+                height: '46px',
+                padding: '0 24px',
+                borderRadius: '12px',
+                fontSize: '0.86rem',
+                fontWeight: 800,
+                background: '#EF4444',
+                color: '#FFFFFF',
+                border: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                transition: 'all 0.15s ease'
+              }}
             >
-              <AlertTriangle style={{ width: 16, height: 16 }} />
-              <span>Registrar e Enviar Problema</span>
+              <AlertTriangle style={{ width: 17, height: 17 }} />
+              <span>Enviar Chamado de Suporte</span>
             </button>
           </div>
         </form>

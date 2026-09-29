@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    const acessos = await prisma.controleSala.findMany({
-      orderBy: { entrada: 'desc' },
-      include: { aluno: true }
-    });
+    const { data: acessos, error } = await supabase
+      .from('CONTROLE_SALA')
+      .select('*, aluno:ALUNOS(*)')
+      .order('entrada', { ascending: false });
+
+    if (error) throw error;
     return NextResponse.json(acessos);
-  } catch (error) {
-    return NextResponse.json({ error: 'Erro ao buscar acessos' }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Erro ao buscar acessos' }, { status: 500 });
   }
 }
 
@@ -23,10 +25,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Matrícula é obrigatória' }, { status: 400 });
     }
 
-    const aluno = await prisma.aluno.findUnique({
-      where: { id: aluno_id }
-    });
+    const { data: aluno, error: alunoErr } = await supabase
+      .from('ALUNOS')
+      .select('*')
+      .eq('id', aluno_id)
+      .maybeSingle();
 
+    if (alunoErr) throw alunoErr;
     if (!aluno) {
       return NextResponse.json({ error: `Matrícula ${aluno_id} não cadastrada` }, { status: 404 });
     }
@@ -36,46 +41,60 @@ export async function POST(req: Request) {
     }
 
     // Verifica se já está na sala sem saída
-    const acessoAberto = await prisma.controleSala.findFirst({
-      where: {
-        aluno_id,
-        saida: null
-      }
-    });
+    const { data: acessoAberto, error: acessoErr } = await supabase
+      .from('CONTROLE_SALA')
+      .select('*')
+      .eq('aluno_id', aluno_id)
+      .is('saida', null)
+      .maybeSingle();
+
+    if (acessoErr) throw acessoErr;
 
     if (acessoAberto) {
       // REGISTRAR SAÍDA
-      const atualizado = await prisma.controleSala.update({
-        where: { id: acessoAberto.id },
-        data: { saida: new Date() }
-      });
+      const { data: atualizado, error: updateErr } = await supabase
+        .from('CONTROLE_SALA')
+        .update({ saida: new Date().toISOString() })
+        .eq('id', acessoAberto.id)
+        .select()
+        .single();
+
+      if (updateErr) throw updateErr;
 
       // Se estiver em algum PC, encerra a sessão
-      const sessaoPC = await prisma.controleComputadores.findFirst({
-        where: { aluno_id, fim_uso: null }
-      });
+      const { data: sessaoPC } = await supabase
+        .from('CONTROLE_COMPUTADORES')
+        .select('*')
+        .eq('aluno_id', aluno_id)
+        .is('fim_uso', null)
+        .maybeSingle();
 
       if (sessaoPC) {
-        await prisma.controleComputadores.update({
-          where: { id: sessaoPC.id },
-          data: { fim_uso: new Date() }
-        });
-        await prisma.computador.update({
-          where: { id: sessaoPC.computador_id },
-          data: { status: 'disponivel' }
-        });
+        await supabase
+          .from('CONTROLE_COMPUTADORES')
+          .update({ fim_uso: new Date().toISOString() })
+          .eq('id', sessaoPC.id);
+
+        await supabase
+          .from('COMPUTADORES')
+          .update({ status: 'disponivel' })
+          .eq('id', sessaoPC.computador_id);
       }
 
       return NextResponse.json({ action: 'checkout', acesso: atualizado, aluno });
     } else {
       // REGISTRAR ENTRADA
-      const novo = await prisma.controleSala.create({
-        data: {
+      const { data: novo, error: insertErr } = await supabase
+        .from('CONTROLE_SALA')
+        .insert([{
           aluno_id,
-          entrada: new Date(),
+          entrada: new Date().toISOString(),
           saida: null
-        }
-      });
+        }])
+        .select()
+        .single();
+
+      if (insertErr) throw insertErr;
       return NextResponse.json({ action: 'checkin', acesso: novo, aluno });
     }
   } catch (error: any) {

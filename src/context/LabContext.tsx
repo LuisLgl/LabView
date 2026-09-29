@@ -14,22 +14,12 @@ import {
   UserRole
 } from '@/types';
 
-// Nova chave de armazenamento limpa
-const DB_KEY = 'LABVIEW_UFPI_STORAGE_V3_CLEAN';
-const AUTH_KEY = 'LABVIEW_UFPI_AUTH_SESSION_V3';
+// Chave de armazenamento limpa
+const DB_KEY = 'LABVIEW_UFPI_STORAGE_PROD_V1';
+const AUTH_KEY = 'LABVIEW_UFPI_AUTH_SESSION_PROD_V1';
 
-// Dados padrão iniciais limpos para o usuário alimentar
-const initialUsuarios: Usuario[] = [
-  {
-    id: "usr-01",
-    nome: "Prof. Luis Ramos",
-    email: "admin@ufpi.edu.br",
-    senha: "admin",
-    perfil: "Administrador",
-    status_aprovacao: "aprovado",
-    criado_em: new Date().toISOString()
-  }
-];
+// Dados padrão iniciais vazios para o usuário cadastrar
+const initialUsuarios: Usuario[] = [];
 
 const initialAlunos: Aluno[] = [];
 const initialComputadores: Computador[] = [];
@@ -50,7 +40,7 @@ interface LabContextType {
   controleSala: ControleSala[];
   controleComputadores: ControleComputadores[];
   problemas: ProblemaComputador[];
-  currentUser: Usuario;
+  currentUser: Usuario | null;
   authMode: AuthMode;
   loggedAluno: Aluno | null;
   isAuthenticated: boolean;
@@ -94,7 +84,7 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
   const [controleSala, setControleSala] = useState<ControleSala[]>(initialControleSala);
   const [controleComputadores, setControleComputadores] = useState<ControleComputadores[]>(initialControleComputadores);
   const [problemas, setProblemas] = useState<ProblemaComputador[]>(initialProblemas);
-  const [activeUserId, setActiveUserId] = useState<string>("usr-01");
+  const [activeUserId, setActiveUserId] = useState<string>("");
   const [authMode, setAuthMode] = useState<AuthMode>('admin');
   const [loggedAlunoId, setLoggedAlunoId] = useState<string | null>(null);
   const [theme, setTheme] = useState<'theme-light' | 'theme-dark'>('theme-light');
@@ -107,7 +97,7 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
         const stored = localStorage.getItem(DB_KEY);
         if (stored && stored.trim().startsWith('{')) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed.usuarios) && parsed.usuarios.length > 0) setUsuarios(parsed.usuarios);
+          if (Array.isArray(parsed.usuarios)) setUsuarios(parsed.usuarios);
           if (Array.isArray(parsed.alunos)) setAlunos(parsed.alunos);
           if (Array.isArray(parsed.computadores)) setComputadores(parsed.computadores);
           if (Array.isArray(parsed.controleSala)) setControleSala(parsed.controleSala);
@@ -173,7 +163,7 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const currentUser = usuarios.find((u) => u.id === activeUserId) || usuarios[0] || initialUsuarios[0];
+  const currentUser = (activeUserId ? usuarios.find((u) => u.id === activeUserId) : null) || usuarios[0] || null;
   const loggedAluno = loggedAlunoId ? alunos.find((a) => a.id === loggedAlunoId) || null : null;
   const isAuthenticated = authMode === 'admin' ? !!currentUser : !!loggedAluno;
 
@@ -486,11 +476,11 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const autorNome = authMode === 'aluno' && loggedAluno
       ? `${loggedAluno.nome} (Aluno)`
-      : currentUser.nome;
+      : (currentUser ? currentUser.nome : 'Administrador');
 
     const autorId = authMode === 'aluno' && loggedAluno
       ? loggedAluno.id
-      : activeUserId;
+      : (activeUserId || (currentUser ? currentUser.id : 'admin'));
 
     const novo: ProblemaComputador = {
       id: 'prb-' + Date.now(),
@@ -553,6 +543,9 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
       criado_em: new Date().toISOString()
     };
     setUsuarios((prev) => [...prev, novo]);
+    if (!activeUserId) {
+      setActiveUserId(novo.id);
+    }
     showToast(`Operador ${novo.nome} cadastrado com sucesso!`, 'success');
   };
 
@@ -590,16 +583,27 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
     }
 
     setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, status_aprovacao: 'aprovado', codigo_confirmacao: undefined } : u));
+    if (!activeUserId) {
+      setActiveUserId(userId);
+    }
     showToast(`Operador ${user.nome} aprovado e ativado no sistema!`, 'success');
     return true;
   };
 
   const removerUsuario = (userId: string) => {
-    if (userId === 'usr-01') {
-      showToast('O administrador principal não pode ser removido.', 'error');
+    const user = usuarios.find(u => u.id === userId);
+    if (!user) return;
+
+    const adminsRestantes = usuarios.filter(u => u.perfil === 'Administrador' && u.id !== userId);
+    if (user.perfil === 'Administrador' && adminsRestantes.length === 0) {
+      showToast('O sistema necessita de pelo menos 1 administrador ativo cadastrado.', 'error');
       return;
     }
+
     setUsuarios(prev => prev.filter(u => u.id !== userId));
+    if (activeUserId === userId) {
+      setActiveUserId(adminsRestantes[0]?.id || '');
+    }
     showToast('Operador removido.', 'info');
   };
 
@@ -616,13 +620,13 @@ export function LabProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetToDefault = () => {
-    setUsuarios(initialUsuarios);
-    setAlunos(initialAlunos);
-    setComputadores(initialComputadores);
-    setControleSala(initialControleSala);
-    setControleComputadores(initialControleComputadores);
-    setProblemas(initialProblemas);
-    setActiveUserId("usr-01");
+    setUsuarios([]);
+    setAlunos([]);
+    setComputadores([]);
+    setControleSala([]);
+    setControleComputadores([]);
+    setProblemas([]);
+    setActiveUserId("");
     setAuthMode('admin');
     setLoggedAlunoId(null);
     if (typeof window !== 'undefined') {

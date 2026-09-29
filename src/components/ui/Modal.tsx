@@ -34,48 +34,144 @@ export default function Modal({
 
   if (!isOpen) return null;
 
-  const maxWidthClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl'
-  };
+  const maxWStyle = {
+    sm: '480px',
+    md: '580px',
+    lg: '720px',
+    xl: '900px'
+  }[maxWidth];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        animation: 'fadeIn 0.2s ease-out'
+      }}
+    >
       <div
-        className="fixed inset-0"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          cursor: 'pointer'
+        }}
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[20px] shadow-2xl p-6 overflow-hidden z-10`}
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: maxWStyle,
+          backgroundColor: 'var(--bg-card)',
+          border: '1.8px solid var(--border-color)',
+          borderRadius: '24px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 30px rgba(99, 66, 245, 0.15)',
+          padding: '24px 28px',
+          zIndex: 10000,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
       >
-        <div className="flex items-center justify-between pb-4 border-b border-[var(--border-color)] mb-5">
-          <div className="flex items-center gap-3">
+        {/* Cabeçalho do Modal */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            paddingBottom: '16px',
+            borderBottom: '1.5px solid var(--border-color)',
+            marginBottom: '20px',
+            gap: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             {icon && (
-              <div className="w-10 h-10 rounded-[12px] bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center shrink-0">
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--primary-light)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(99, 66, 245, 0.15)'
+                }}
+              >
                 {icon}
               </div>
             )}
             <div>
-              <h3 className="font-extrabold text-lg text-[var(--text-main)] leading-snug">
+              <h3
+                style={{
+                  fontSize: '1.2rem',
+                  fontWeight: 900,
+                  color: 'var(--text-main)',
+                  lineHeight: 1.25,
+                  margin: 0
+                }}
+              >
                 {title}
               </h3>
               {subtitle && (
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</p>
+                <p
+                  style={{
+                    fontSize: '0.8rem',
+                    color: 'var(--text-muted)',
+                    marginTop: '4px',
+                    marginBottom: 0,
+                    lineHeight: 1.35
+                  }}
+                >
+                  {subtitle}
+                </p>
               )}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="btn-icon w-8 h-8 rounded-full hover:bg-[var(--primary-light)]"
+            type="button"
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '50%',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-card-subtle)',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'all 0.15s ease'
+            }}
             title="Fechar (Esc)"
           >
-            <X className="w-4 h-4" />
+            <X style={{ width: '18px', height: '18px' }} />
           </button>
         </div>
-        <div className="max-h-[80vh] overflow-y-auto pr-1">
+
+        {/* Corpo com Scroll Suave */}
+        <div
+          style={{
+            overflowY: 'auto',
+            paddingRight: '6px',
+            paddingBottom: '4px'
+          }}
+        >
           {children}
         </div>
       </div>
