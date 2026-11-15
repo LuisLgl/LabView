@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ========================================
+// USUÁRIOS ADMINISTRATIVOS
+// ========================================
+
+model Usuario {
+  id                String   @id @default(cuid())
+  nome              String
+  email             String   @unique
+  senhaHash         String   @map("senha_hash")
+  perfil            String   @default("Administrador")
+  statusAprovacao   String?  @map("status_aprovacao")
+  codigoConfirmacao String?  @map("codigo_confirmacao")
+  criadoEm          DateTime @default(now()) @map("criado_em")
+
+  alunosCadastrados       Aluno[]              @relation("AlunoCadastradoPor")
+  computadoresCadastrados Computador[]         @relation("ComputadorCadastradoPor")
+  problemasRegistrados    ProblemaComputador[] @relation("ProblemaRegistradoPorUsuario")
+  importacoes             ImportacaoTermos[]   @relation("UsuarioImportacoes")
+
+  @@map("USUARIOS")
+}
+
+// ========================================
+// ALUNOS
+// ========================================
+
+model Aluno {
+  id            String   @id
+  nome          String
+  email         String   @unique
+  senhaHash     String   @map("senha_hash")
+  curso         String   @default("Sistemas de Informação")
+  status        String   @default("ativo")
+  cadastradoPor String?  @map("cadastrado_por")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario? @relation("AlunoCadastradoPor", fields: [cadastradoPor], references: [id], onDelete: SetNull)
+
+  controlesSala ControleSala[]
+  controlesPC   ControleComputadores[]
+  termos        TermoResponsabilidade[]
+
+  problemasRegistrados ProblemaComputador[] @relation("ProblemaRegistradoPorAluno")
+
+  @@map("ALUNOS")
+}
+
+// ========================================
+// COMPUTADORES
+// ========================================
+
+model Computador {
+  id             Int     @id @default(autoincrement())
+  patrimonio     String  @unique
+  nomeHost       String  @map("nome_host")
+  status         String  @default("disponivel")
+  especificacoes String?
+  cadastradoPor  String  @map("cadastrado_por")
+
+  usuario Usuario @relation("ComputadorCadastradoPor", fields: [cadastradoPor], references: [id], onDelete: Cascade)
+
+  controles ControleComputadores[]
+  problemas ProblemaComputador[]
+
+  @@map("COMPUTADORES")
+}
+
+// ========================================
+// CONTROLE DE ENTRADA E SAÍDA DA SALA
+// ========================================
+
+model ControleSala {
+  id      String    @id @default(cuid())
+  alunoId String    @map("aluno_id")
+  entrada DateTime  @default(now())
+  saida   DateTime?
+
+  aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  @@map("CONTROLE_SALA")
+}
+
+// ========================================
+// CONTROLE DE USO DOS COMPUTADORES
+// ========================================
+
+model ControleComputadores {
+  id           String    @id @default(cuid())
+  alunoId      String    @map("aluno_id")
+  computadorId Int       @map("computador_id")
+  inicioUso    DateTime  @default(now()) @map("inicio_uso")
+  fimUso       DateTime? @map("fim_uso")
+
+  aluno      Aluno      @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  computador Computador @relation(fields: [computadorId], references: [id], onDelete: Cascade)
+
+  @@map("CONTROLE_COMPUTADORES")
+}
+
+// ========================================
+// PROBLEMAS E OCORRÊNCIAS
+// ========================================
+
+model ProblemaComputador {
+  id            String    @id @default(cuid())
+  computadorId  Int?      @map("computador_id")
+  categoria     String?
+  descricao     String
+  dataRegistro  DateTime  @default(now()) @map("data_registro")
+  dataResolucao DateTime? @map("data_resolucao")
+  status        String    @default("pendente")
+
+  registradoPor String @map("registrado_por")
+
+  registradoPorUsuarioId String? @map("registrado_por_usuario_id")
+  registradoPorAlunoId   String? @map("registrado_por_aluno_id")
+
+  computador Computador? @relation(fields: [computadorId], references: [id], onDelete: SetNull)
+
+  usuario Usuario? @relation("ProblemaRegistradoPorUsuario", fields: [registradoPorUsuarioId], references: [id], onDelete: SetNull)
+
+  aluno Aluno? @relation("ProblemaRegistradoPorAluno", fields: [registradoPorAlunoId], references: [id], onDelete: SetNull)
+
+  @@map("PROBLEMAS_COMPUTADORES")
+}
+
+// ========================================
+// IMPORTAÇÃO DOS TERMOS DE RESPONSABILIDADE
+// ========================================
+
+model ImportacaoTermos {
+  id               String   @id @default(cuid())
+  status           String   @default("PROCESSANDO")
+  totalArquivos    Int      @default(0) @map("total_arquivos")
+  totalProcessados Int      @default(0) @map("total_processados")
+  totalPendentes   Int      @default(0) @map("total_pendentes")
+  totalErros       Int      @default(0) @map("total_erros")
+  criadoPorId      String?  @map("criado_por_id")
+  createdAt        DateTime @default(now()) @map("criado_em")
+  updatedAt        DateTime @updatedAt @map("atualizado_em")
+
+  criadoPor Usuario? @relation("UsuarioImportacoes", fields: [criadoPorId], references: [id], onDelete: SetNull)
+
+  termos TermoResponsabilidade[]
+
+  @@map("IMPORTACOES_TERMOS")
+}
+
+// ========================================
+// TERMOS DE RESPONSABILIDADE
+// ========================================
+
+model TermoResponsabilidade {
+  id String @id @default(cuid())
+
+  nomeExtraido      String?   @map("nome_extraido")
+  matriculaExtraida String?   @map("matricula_extraida")
+  dataAssinatura    DateTime? @map("data_assinatura")
+
+  nomeArquivo    String @map("nome_arquivo")
+  caminhoArquivo String @map("caminho_arquivo")
+  arquivoHash    String @unique @map("arquivo_hash")
+  tamanhoBytes   Int?   @map("tamanho_bytes")
+
+  metodoExtracao     String? @map("metodo_extracao")
+  confiancaNome      Float?  @map("confianca_nome")
+  confiancaMatricula Float?  @map("confianca_matricula")
+
+  status     String  @default("PENDENTE_REVISAO")
+  observacao String?
+
+  alunoId String? @map("aluno_id")
+  aluno   Aluno?  @relation(fields: [alunoId], references: [id], onDelete: SetNull)
+
+  importacaoId String           @map("importacao_id")
+  importacao   ImportacaoTermos @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("criado_em")
+  updatedAt DateTime @updatedAt @map("atualizado_em")
+
+  @@index([matriculaExtraida])
+  @@index([status])
+  @@map("TERMOS_RESPONSABILIDADE")
+}

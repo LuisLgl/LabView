@@ -33,21 +33,32 @@ export default function StudentLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleAlunoSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!identificacao.trim() || !senha.trim()) {
-      showToast('Preencha sua identificação e senha.', 'error');
-      return;
-    }
+ const handleAlunoSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    setIsLoading(true);
-    const success = loginAsAluno(identificacao.trim(), senha.trim());
-    setIsLoading(false);
+  if (!identificacao.trim() || !senha.trim()) {
+    showToast('Preencha sua identificação e senha.', 'error');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const success = await loginAsAluno(
+      identificacao.trim(),
+      senha
+    );
 
     if (success) {
       router.push('/portal-aluno');
     }
-  };
+  } catch (error) {
+    console.error('Erro ao entrar:', error);
+    showToast('Não foi possível realizar o login.', 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="login-container">

@@ -22,12 +22,11 @@ import { useLab } from '@/context/LabContext';
 export default function StudentRegisterPage() {
   const router = useRouter();
   const {
-    loginAsAluno,
-    adicionarAluno,
-    theme,
-    toggleTheme,
-    showToast
-  } = useLab();
+  loginAsAluno,
+  theme,
+  toggleTheme,
+  showToast
+} = useLab();
 
   // Registration Form States
   const [matricula, setMatricula] = useState('');
@@ -38,30 +37,57 @@ export default function StudentRegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleCadastroSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!matricula.trim() || !nome.trim() || !email.trim() || !senha.trim()) {
-      showToast('Por favor, preencha todos os campos obrigatórios.', 'error');
+  const handleCadastroSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!matricula.trim() || !nome.trim() || !email.trim() || !senha.trim()) {
+    showToast('Por favor, preencha todos os campos obrigatórios.', 'error');
+    return;
+  }
+
+  if (senha.length < 8) {
+    showToast('A senha deve ter pelo menos 8 caracteres.', 'error');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    // Primeiro cadastra o aluno no SQLite
+    const response = await fetch('/api/alunos', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: matricula.trim(),
+        nome: nome.trim(),
+        email: email.trim().toLowerCase(),
+        senha,
+        curso,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showToast(data.error || 'Não foi possível realizar o cadastro.', 'error');
       return;
     }
 
-    setIsLoading(true);
-    adicionarAluno({
-      id: matricula.trim(),
-      nome: nome.trim(),
-      email: email.trim().toLowerCase(),
-      senha: senha.trim(),
-      curso: curso,
-      status: 'ativo'
-    });
+    // Depois autentica o aluno pela API
+    const loginOk = await loginAsAluno(matricula.trim(), senha);
 
-    const ok = loginAsAluno(matricula.trim(), senha.trim());
-    setIsLoading(false);
-
-    if (ok) {
+    if (loginOk) {
       router.push('/portal-aluno');
     }
-  };
+  } catch (error) {
+    console.error('Erro no cadastro:', error);
+    showToast('Não foi possível conectar ao servidor.', 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="login-container">
